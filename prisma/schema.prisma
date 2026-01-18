@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  username  String    @unique
+  password  String
+  
+  // Relasi: 1 User punya 1 Balance
+  balance   Balance?  
+  
+  // Relasi: 1 User (Merchant) punya banyak Customer
+  customers Customer[]
+  
+  // Relasi: Transaksi & Payout yang diterima/dilakukan user
+  transactions Transaction[]
+  payouts      Payout[]
+
+  createdAt DateTime  @default(now())
+}
+
+model Balance {
+  id        String   @id @default(uuid())
+  amount    Decimal  @default(0) @db.Decimal(20, 2)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  merchantId String
+  merchant   User     @relation(fields: [merchantId], references: [id])
+  
+  transactions Transaction[] // Riwayat belanja customer ini
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(20, 2)
+  status      String   // "pending", "succeeded", "failed"
+  
+  userId      String   // Siapa merchant yang dapet duit
+  user        User     @relation(fields: [userId], references: [id])
+  
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+model Payout {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(20, 2)
+  bankName      String
+  accountNumber String
+  status        String   // "pending", "in_transit", "success", "failed"
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime @default(now())
+}
